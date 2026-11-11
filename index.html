@@ -71,6 +71,13 @@
   .missed { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
   .legend { font-size: .85rem; color: var(--muted); margin-top: 16px; }
   .hidden { display: none; }
+  .muted { color: var(--muted); }
+  .tree { display: grid; grid-template-columns: minmax(0, 260px) 1fr; gap: 20px; align-items: center; margin-bottom: 8px; }
+  .tree h2 { margin: 0 0 8px; font-size: 1.2rem; }
+  .tree svg.field { margin: 0; }
+  .treelist { list-style: none; padding: 0; margin: 0 0 10px; columns: 2; }
+  .sec { font-size: 1.1rem; margin: 24px 0 10px; }
+  @media (max-width: 560px) { .tree { grid-template-columns: 1fr; } }
   @media (max-width: 420px) { .options { grid-template-columns: 1fr; } .options.pics { grid-template-columns: 1fr 1fr; } }
 </style>
 </head>
@@ -82,6 +89,7 @@
   <div class="tabs" role="group" aria-label="Mode">
     <button data-mode="name" aria-pressed="true">Name the route</button>
     <button data-mode="pick" aria-pressed="false">Pick the diagram</button>
+    <button data-mode="number" aria-pressed="false">Route numbers 1–9</button>
     <button data-mode="study" aria-pressed="false">Study all routes</button>
   </div>
 
@@ -107,7 +115,18 @@
   </section>
 
   <section id="study" class="hidden">
+    <div class="card tree">
+      <div id="treeSvg"></div>
+      <div>
+        <h2>The route tree (1–9)</h2>
+        <ol id="treeList" class="treelist"></ol>
+        <p class="muted"><b>Odd numbers</b> (1, 3, 5, 7, 9) break toward the <b>sideline</b>. <b>Even numbers</b> (2, 4, 6, 8) break toward the <b>middle</b>. The higher the number, the deeper the route.</p>
+      </div>
+    </div>
+    <h2 class="sec">Numbered routes</h2>
     <div class="grid" id="studyGrid"></div>
+    <h2 class="sec">More routes from the video</h2>
+    <div class="grid" id="otherGrid"></div>
   </section>
 
   <p class="legend">Diagrams: the circle is the player (WR = outside receiver, Slot = slot receiver or tight end, RB = running back). The thick line on the left is the sideline, the dashed line is the line of scrimmage, the tick marks are the hash, and the middle of the field is to the right.</p>
@@ -119,28 +138,32 @@
 // start = player's spot: [yards in from the outside receiver spot, yards behind the line of scrimmage]
 const WR = [0, -1], SLOT = [7, -1], RB = [9, -5];
 const ROUTES = [
-  { name: "Go", tag: "Vertical", pos: "WR", start: WR, pts: [[0,0],[0,24]],
+  { name: "Go", num: 9, aka: "Fly / Streak", tag: "Vertical", pos: "WR", start: WR, pts: [[0,0],[0,24]],
     desc: "Straight vertical sprint down the field from an outside receiver. Pure speed: beat the cornerback deep." },
   { name: "Seam", tag: "Vertical", pos: "Slot / TE", start: SLOT, pts: [[0,0],[0,24]],
     desc: "A straight vertical route run by a slot receiver or tight end up the seam, the gap between the outside and middle defenders." },
   { name: "Stutter & Go", tag: "Double move", pos: "WR", start: WR,
     pts: [[0,0],[0,5],[-0.7,5.6],[0.7,6.2],[-0.7,6.8],[0,7.4],[0,24]],
     desc: "Fake a stop with quick stutter steps to make the defender bite, then explode vertically past them." },
-  { name: "Corner", tag: "Breaking route", pos: "WR", start: WR, pts: [[0,0],[0,12],[-5,19]],
+  { name: "Corner", num: 7, aka: "Flag", tag: "Breaking route", pos: "WR", start: WR, pts: [[0,0],[0,12],[-5,19]],
     desc: "Run vertical about 10–12 yards, then break at roughly 45° toward the sideline and the back corner." },
-  { name: "Post", tag: "Breaking route", pos: "WR", start: WR, pts: [[0,0],[0,12],[7,21]],
+  { name: "Post", num: 8, tag: "Breaking route", pos: "WR", start: WR, pts: [[0,0],[0,12],[7,21]],
     desc: "Run vertical about 10–12 yards, then break at roughly 45° inside toward the goal post in the middle of the field." },
-  { name: "Flat", tag: "Short route", pos: "Slot / TE / RB", start: SLOT, pts: [[0,0],[0,3],[-8,3]],
+  { name: "Flat", num: 1, tag: "Short route", pos: "Slot / TE / RB", start: SLOT, pts: [[0,0],[0,3],[-8,3]],
     desc: "Release a couple of yards, then turn 90° and run flat toward the sideline. A quick, short option." },
-  { name: "Dig", tag: "Breaking route", pos: "WR", start: WR, pts: [[0,0],[0,13],[14,13]],
+  { name: "Dig", num: 6, aka: "In", tag: "Breaking route", pos: "WR", start: WR, pts: [[0,0],[0,13],[14,13]],
     desc: "Run vertical about 10–15 yards, then cut 90° and run flat across the middle of the field." },
-  { name: "Slant", tag: "Short route", pos: "WR", start: WR, pts: [[0,0],[0,3],[8,10]],
+  { name: "Slant", num: 2, tag: "Short route", pos: "WR", start: WR, pts: [[0,0],[0,3],[8,10]],
     desc: "A few hard steps upfield, then cut inside at about 45° across the defender's face. A quick-timing throw." },
+  { name: "Comeback", num: 3, tag: "Breaking route", pos: "WR", start: WR, pts: [[0,0],[0,15],[-3,12.5]],
+    desc: "Sell a deep route to about 15 yards, then plant and come back toward the sideline at an angle." },
+  { name: "Out", num: 5, tag: "Breaking route", pos: "WR", start: WR, pts: [[0,0],[0,10],[-4.5,10]],
+    desc: "Run vertical about 10 yards, then break 90° toward the sideline." },
   { name: "Angle", tag: "Running back route", pos: "RB", start: RB, pts: [[0,0],[-3.5,4],[1.5,10]],
     desc: "Usually run by a running back: release outside as if running to the flat, then cut sharply back inside at an angle." },
   { name: "Hitch", tag: "Short route", pos: "WR", start: WR, pts: [[0,0],[0,7],[-1,5.8]],
     desc: "Sprint about 5–6 yards, stop sharply, and turn back to face the quarterback for a quick throw." },
-  { name: "Curl", tag: "Breaking route", pos: "WR", start: WR, pts: [[0,0],[0,13],[2.5,10.5]],
+  { name: "Curl", num: 4, aka: "Hook", tag: "Breaking route", pos: "WR", start: WR, pts: [[0,0],[0,13],[2.5,10.5]],
     desc: "Run vertical about 10–12 yards, then curl back inside toward the quarterback and settle in the open space." },
   { name: "Whip", tag: "Double move", pos: "Slot", start: SLOT, curve: true,
     pts: [[0,0],[0,5],[3.5,5],[3.5,3.6],[0,3.6],[-7,3.6]],
@@ -158,12 +181,44 @@ const ROUTES = [
     desc: "Slant-and-go: sell the slant for a couple of steps, then turn straight upfield and run past the defender who jumped it." },
 ];
 
+const TREE = ROUTES.filter(r => r.num).sort((a, b) => a.num - b.num);
+const fullName = r => r.num ? `${r.num} – ${r.name}` : r.name;
+
 const YD = 8, SIDE_X = 14, REC_X = 50, LOS_Y = 202, W = 200, H = 272;
 let uid = 0;
 
 function drawRoute(r, label) {
   const id = "ah" + (uid++);
   const sx = REC_X + r.start[0] * YD, sy = LOS_Y - r.start[1] * YD;
+  return fieldSvg(label, id, `<path d="${pathFor(r, sx, sy)}" fill="none" stroke="var(--route)" stroke-width="4" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#${id})"/>
+    <circle cx="${sx}" cy="${sy}" r="7" fill="var(--player)" stroke="#222" stroke-width="1.5"/>
+    <text x="${sx}" y="${sy + 19}" fill="#fff" font-size="10" font-weight="700" text-anchor="middle">${r.pos === "RB" ? "RB" : r.pos === "WR" ? "WR" : "Slot"}</text>`);
+}
+
+// All nine numbered routes from one receiver, with each number at the end of its route.
+function drawTree() {
+  const id = "ah" + (uid++);
+  const sx = SIDE_X + 7 * YD, sy = LOS_Y + YD;
+  // Classic route-tree layout: depths spread out so every branch is readable.
+  const TREE_PTS = {
+    1: [[0,0],[0,2],[-5,2]], 2: [[0,0],[0,2],[5,7]], 3: [[0,0],[0,16],[-3,13.5]],
+    4: [[0,0],[0,13],[2.5,11]], 5: [[0,0],[0,7],[-5,7]], 6: [[0,0],[0,10],[9,10]],
+    7: [[0,0],[0,17],[-5,22]], 8: [[0,0],[0,17],[6,23]], 9: [[0,0],[0,23.5]],
+  };
+  let body = "";
+  for (const t of TREE) {
+    const r = { ...t, pts: TREE_PTS[t.num], curve: false };
+    const end = r.pts[r.pts.length - 1];
+    const ex = sx + end[0] * YD, ey = sy - end[1] * YD;
+    const dx = Math.sign(end[0]) * 11, dy = end[0] === 0 ? -2 : 0;
+    body += `<path d="${pathFor(r, sx, sy)}" fill="none" stroke="var(--route)" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#${id})"/>
+      <circle cx="${ex + dx}" cy="${ey + dy}" r="8" fill="#fff"/><text x="${ex + dx}" y="${ey + dy + 4}" font-size="11" font-weight="800" text-anchor="middle" fill="#111">${r.num}</text>`;
+  }
+  body += `<circle cx="${sx}" cy="${sy}" r="7" fill="var(--player)" stroke="#222" stroke-width="1.5"/>`;
+  return fieldSvg("Route tree 1 to 9", id, body, true);
+}
+
+function pathFor(r, sx, sy) {
   const pts = r.pts.map(([x, y]) => [sx + x * YD, sy - y * YD]);
   let d = `M${pts[0][0]},${pts[0][1]}`;
   if (r.curve) {
@@ -175,10 +230,14 @@ function drawRoute(r, label) {
   } else {
     for (let i = 1; i < pts.length; i++) d += ` L${pts[i][0]},${pts[i][1]}`;
   }
+  return d;
+}
+
+function fieldSvg(label, id, body, noHash) {
   let marks = "";
   for (let y = 5; y <= 25; y += 5) marks += `<line x1="${SIDE_X}" x2="${W}" y1="${LOS_Y - y * YD}" y2="${LOS_Y - y * YD}" stroke="var(--field-line)" stroke-width="1" opacity=".5"/>`;
   const hashX = REC_X + 7 * YD;
-  for (let y = -6; y <= 25; y++) marks += `<line x1="${hashX - 3}" x2="${hashX + 3}" y1="${LOS_Y - y * YD}" y2="${LOS_Y - y * YD}" stroke="var(--field-line)" stroke-width="1.2"/>`;
+  if (!noHash) for (let y = -6; y <= 25; y++) marks += `<line x1="${hashX - 3}" x2="${hashX + 3}" y1="${LOS_Y - y * YD}" y2="${LOS_Y - y * YD}" stroke="var(--field-line)" stroke-width="1.2"/>`;
   return `<svg class="field" viewBox="0 0 ${W} ${H}" role="img" aria-label="${label || "Route diagram"}">
     <defs><marker id="${id}" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="var(--route)"/></marker></defs>
@@ -188,9 +247,7 @@ function drawRoute(r, label) {
     <line x1="${SIDE_X}" x2="${W}" y1="${LOS_Y}" y2="${LOS_Y}" stroke="#fff" stroke-width="2" stroke-dasharray="6 5"/>
     <text x="${W - 6}" y="${LOS_Y - 5}" fill="#fff" font-size="10" text-anchor="end" opacity=".85">LOS</text>
     <text x="${W - 6}" y="14" fill="#fff" font-size="10" text-anchor="end" opacity=".85">middle →</text>
-    <path d="${d}" fill="none" stroke="var(--route)" stroke-width="4" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#${id})"/>
-    <circle cx="${sx}" cy="${sy}" r="7" fill="var(--player)" stroke="#222" stroke-width="1.5"/>
-    <text x="${sx}" y="${sy + 19}" fill="#fff" font-size="10" font-weight="700" text-anchor="middle">${r.pos === "RB" ? "RB" : r.pos === "WR" ? "WR" : "Slot"}</text>
+    ${body}
   </svg>`;
 }
 
@@ -200,13 +257,14 @@ let mode = "name", deck = [], idx = 0, score = 0, missed = [];
 const $ = s => document.getElementById(s);
 
 function start(routes) {
-  deck = shuffle(routes || ROUTES); idx = 0; score = 0; missed = [];
+  deck = shuffle(routes || (mode === "number" ? TREE : ROUTES)); idx = 0; score = 0; missed = [];
   $("result").classList.add("hidden"); $("quiz").classList.remove("hidden");
   render();
 }
 
 function choicesFor(r) {
-  return shuffle([r, ...shuffle(ROUTES.filter(x => x !== r)).slice(0, 3)]);
+  const pool = mode === "number" ? TREE : ROUTES;
+  return shuffle([r, ...shuffle(pool.filter(x => x !== r)).slice(0, 3)]);
 }
 
 function render() {
@@ -216,7 +274,10 @@ function render() {
   $("progress").style.width = (idx / deck.length * 100) + "%";
   $("feedback").className = "feedback"; $("next").classList.add("hidden");
   const opts = choicesFor(r);
-  if (mode === "name") {
+  if (mode === "number") {
+    $("question").innerHTML = `<p class="prompt">What number is this route in the route tree?</p>${drawRoute(r)}
+      <div class="options">${opts.map((o, i) => `<button data-i="${i}" style="font-size:1.4rem">${o.num}</button>`).join("")}</div>`;
+  } else if (mode === "name") {
     $("question").innerHTML = `<p class="prompt">What route is this?</p>${drawRoute(r)}
       <div class="options">${opts.map((o, i) => `<button data-i="${i}">${o.name}</button>`).join("")}</div>`;
   } else {
@@ -235,7 +296,7 @@ function answer(btn, opts, r) {
   if (ok) score++; else { btn.classList.add("wrong"); missed.push(r); }
   $("score").textContent = `Score: ${score}`;
   $("feedback").innerHTML = `<strong class="${ok ? "ok" : "no"}">${ok ? "Correct!" : "Not quite."}</strong>
-    ${ok ? "" : `You picked <b>${pick.name}</b>. `}This is the <b>${r.name}</b>: ${r.desc}`;
+    ${ok ? "" : `You picked <b>${fullName(pick)}</b>. `}This is the <b>${fullName(r)}</b>${r.aka ? ` (also called ${r.aka})` : ""}: ${r.desc}`;
   $("feedback").classList.add("show");
   const n = $("next"); n.classList.remove("hidden");
   n.textContent = idx === deck.length - 1 ? "See results" : "Next";
@@ -250,7 +311,7 @@ function finish() {
   const pct = Math.round(score / deck.length * 100);
   $("final").textContent = `You scored ${score} / ${deck.length} (${pct}%)` + (pct === 100 ? " 🏈 Perfect!" : "");
   $("missedWrap").innerHTML = missed.length
-    ? `<p>Routes to review:</p><div class="missed">${missed.map(m => `<span class="tag">${m.name}</span>`).join("")}</div>`
+    ? `<p>Routes to review:</p><div class="missed">${missed.map(m => `<span class="tag">${fullName(m)}</span>`).join("")}</div>`
     : `<p>No misses. You know your route tree.</p>`;
   $("retryMissed").classList.toggle("hidden", !missed.length);
 }
@@ -258,8 +319,13 @@ $("retryMissed").onclick = () => start(missed);
 $("restart").onclick = () => start();
 
 function renderStudy() {
-  $("studyGrid").innerHTML = ROUTES.map(r => `<div class="card">${drawRoute(r, r.name)}
-    <h3>${r.name}</h3><span class="tag">${r.tag}</span><p>${r.desc}</p></div>`).join("");
+  $("treeSvg").innerHTML = drawTree();
+  $("treeList").innerHTML = TREE.map(r => `<li><b>${r.num}</b> – ${r.name}${r.aka ? ` <span class="muted">(${r.aka})</span>` : ""}</li>`).join("");
+  const others = ROUTES.filter(r => !r.num);
+  const card = r => `<div class="card">${drawRoute(r, r.name)}
+    <h3>${fullName(r)}</h3><span class="tag">${r.tag}</span><p>${r.aka ? `Also called ${r.aka}. ` : ""}${r.desc}</p></div>`;
+  $("studyGrid").innerHTML = TREE.map(card).join("");
+  $("otherGrid").innerHTML = others.map(card).join("");
 }
 
 document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => {
