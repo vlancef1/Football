@@ -33,6 +33,7 @@
   main { max-width: 720px; margin: 0 auto; padding: 20px 16px 48px; }
   h1 { font-size: 1.6rem; margin: 0 0 4px; }
   .sub { color: var(--muted); margin: 0 0 20px; }
+  .sub a { color: var(--accent); }
   .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
   .tabs button, .btn {
     border: 1px solid var(--border); background: var(--card); color: var(--ink);
@@ -76,7 +77,7 @@
 <body>
 <main>
   <h1>Route Tree Quiz</h1>
-  <p class="sub">Look at the route diagram and name it, or read the name and pick the diagram.</p>
+  <p class="sub">Routes from <a href="https://youtu.be/gBHQZOulvIY" target="_blank" rel="noopener">Every Receiver Route in American Football explained in 5 minutes</a>. Name the route from the diagram, or pick the diagram for a route name.</p>
 
   <div class="tabs" role="group" aria-label="Mode">
     <button data-mode="name" aria-pressed="true">Name the route</button>
@@ -109,80 +110,87 @@
     <div class="grid" id="studyGrid"></div>
   </section>
 
-  <p class="legend">Diagrams: the receiver (circle) lines up on the left side of the field. The thick line on the left is the sideline, the dashed line is the line of scrimmage, and the middle of the field is to the right. Route numbers differ between teams and playbooks.</p>
+  <p class="legend">Diagrams: the circle is the player (WR = outside receiver, Slot = slot receiver or tight end, RB = running back). The thick line on the left is the sideline, the dashed line is the line of scrimmage, the tick marks are the hash, and the middle of the field is to the right.</p>
 </main>
 
 <script>
-// Coordinates in yards: x = yards toward the middle of the field (+) or the sideline (-), y = depth past the line of scrimmage.
+// Routes and names from the video "Every Receiver ROUTE in American Football explained in 5 minutes" (Everything Explained).
+// Coordinates in yards, relative to the player: x = toward the middle of the field (+) or the sideline (-), y = upfield.
+// start = player's spot: [yards in from the outside receiver spot, yards behind the line of scrimmage]
+const WR = [0, -1], SLOT = [7, -1], RB = [9, -5];
 const ROUTES = [
-  { name: "Flat", tag: "1 (common tree)", start: 7, pts: [[0,0],[0.5,1.5],[-8,3]],
-    desc: "Release and get flat to the sideline within 1–3 yards of the line. Often run by backs, tight ends and slot receivers." },
-  { name: "Slant", tag: "2 (common tree)", start: 0, pts: [[0,0],[0,2],[8,9]],
-    desc: "Two or three hard steps upfield, then cut sharply inside at about 45° across the defender's face." },
-  { name: "Comeback", tag: "3 (common tree)", start: 0, pts: [[0,0],[0,15],[-3,12]],
-    desc: "Sell the deep route to about 15 yards, then plant and come back toward the sideline at an angle." },
-  { name: "Curl", tag: "4 (common tree)", start: 0, pts: [[0,0],[0,12],[2.2,9.5]],
-    desc: "Push vertical 10–12 yards, then turn back inside toward the quarterback and settle in the open window." },
-  { name: "Out", tag: "5 (common tree)", start: 0, pts: [[0,0],[0,10],[-5,10]],
-    desc: "Run vertical about 10 yards, then break flat (90°) toward the sideline." },
-  { name: "Dig (In)", tag: "6 (common tree)", start: 0, pts: [[0,0],[0,12],[11,12]],
-    desc: "Run vertical 10–12 yards, then break flat (90°) across the middle of the field." },
-  { name: "Corner", tag: "7 (common tree)", start: 0, pts: [[0,0],[0,12],[-5,19]],
-    desc: "Push vertical 10–12 yards, then break at 45° toward the back corner of the end zone / sideline." },
-  { name: "Post", tag: "8 (common tree)", start: 0, pts: [[0,0],[0,12],[7,22]],
-    desc: "Push vertical 10–12 yards, then break at 45° inside toward the goal post / middle of the field." },
-  { name: "Go (Fly)", tag: "9 (common tree)", start: 0, pts: [[0,0],[0,24]],
-    desc: "Straight vertical sprint down the field. Beat the corner with speed." },
-  { name: "Hitch", tag: "0 in some trees", start: 0, pts: [[0,0],[0,6],[-1.2,4.3]],
-    desc: "Sprint 5–6 yards, stop, and snap back to face the quarterback. A quick throw." },
-  { name: "Quick Out", tag: "Short route", start: 0, pts: [[0,0],[0,5],[-5,5]],
-    desc: "A short out: about 5 yards vertical, then break flat toward the sideline." },
-  { name: "Drag (Shallow Cross)", tag: "Crossing route", start: 0, pts: [[0,0],[1,2],[15,3]],
-    desc: "Release inside and run shallow (2–5 yards) all the way across the field underneath the linebackers." },
-  { name: "Wheel", tag: "Combo route", start: 7, pts: [[0,0],[-3,1.5],[-6,4],[-7,7],[-7,22]],
-    desc: "Start like a flat toward the sideline, then turn it upfield along the sideline. The path looks like a wheel." },
-  { name: "Post-Corner", tag: "Double move", start: 0, pts: [[0,0],[0,10],[3,13],[-3,20]],
-    desc: "Fake the post by stemming inside, then break back outside to the corner." },
-  { name: "Slant-and-Go (Sluggo)", tag: "Double move", start: 0, pts: [[0,0],[0,2],[3,5],[3,23]],
-    desc: "Sell the slant for a couple of steps, then turn straight upfield on a go route." },
-  { name: "Fade", tag: "Vertical", start: 0, pts: [[0,0],[-0.5,8],[-2.5,22]],
-    desc: "Release and drift toward the sideline as you go deep, for a ball thrown over the outside shoulder." },
+  { name: "Go", tag: "Vertical", pos: "WR", start: WR, pts: [[0,0],[0,24]],
+    desc: "Straight vertical sprint down the field from an outside receiver. Pure speed: beat the cornerback deep." },
+  { name: "Seam", tag: "Vertical", pos: "Slot / TE", start: SLOT, pts: [[0,0],[0,24]],
+    desc: "A straight vertical route run by a slot receiver or tight end up the seam, the gap between the outside and middle defenders." },
+  { name: "Stutter & Go", tag: "Double move", pos: "WR", start: WR,
+    pts: [[0,0],[0,5],[-0.7,5.6],[0.7,6.2],[-0.7,6.8],[0,7.4],[0,24]],
+    desc: "Fake a stop with quick stutter steps to make the defender bite, then explode vertically past them." },
+  { name: "Corner", tag: "Breaking route", pos: "WR", start: WR, pts: [[0,0],[0,12],[-5,19]],
+    desc: "Run vertical about 10–12 yards, then break at roughly 45° toward the sideline and the back corner." },
+  { name: "Post", tag: "Breaking route", pos: "WR", start: WR, pts: [[0,0],[0,12],[7,21]],
+    desc: "Run vertical about 10–12 yards, then break at roughly 45° inside toward the goal post in the middle of the field." },
+  { name: "Flat", tag: "Short route", pos: "Slot / TE / RB", start: SLOT, pts: [[0,0],[0,3],[-8,3]],
+    desc: "Release a couple of yards, then turn 90° and run flat toward the sideline. A quick, short option." },
+  { name: "Dig", tag: "Breaking route", pos: "WR", start: WR, pts: [[0,0],[0,13],[14,13]],
+    desc: "Run vertical about 10–15 yards, then cut 90° and run flat across the middle of the field." },
+  { name: "Slant", tag: "Short route", pos: "WR", start: WR, pts: [[0,0],[0,3],[8,10]],
+    desc: "A few hard steps upfield, then cut inside at about 45° across the defender's face. A quick-timing throw." },
+  { name: "Angle", tag: "Running back route", pos: "RB", start: RB, pts: [[0,0],[-3.5,4],[1.5,10]],
+    desc: "Usually run by a running back: release outside as if running to the flat, then cut sharply back inside at an angle." },
+  { name: "Hitch", tag: "Short route", pos: "WR", start: WR, pts: [[0,0],[0,7],[-1,5.8]],
+    desc: "Sprint about 5–6 yards, stop sharply, and turn back to face the quarterback for a quick throw." },
+  { name: "Curl", tag: "Breaking route", pos: "WR", start: WR, pts: [[0,0],[0,13],[2.5,10.5]],
+    desc: "Run vertical about 10–12 yards, then curl back inside toward the quarterback and settle in the open space." },
+  { name: "Whip", tag: "Double move", pos: "Slot", start: SLOT, curve: true,
+    pts: [[0,0],[0,5],[3.5,5],[3.5,3.6],[0,3.6],[-7,3.6]],
+    desc: "Fake an inside break, plant, and whip back the other way toward the sideline. It beats defenders who jump the inside cut." },
+  { name: "Cross", tag: "Crossing route", pos: "WR", start: WR, curve: true,
+    pts: [[0,0],[0,5],[1,8],[4,9.5],[15,9.5]],
+    desc: "Release upfield, then bend across the field at an intermediate depth, running away from man coverage." },
+  { name: "Shallow Cross", tag: "Crossing route", pos: "WR", start: WR, curve: true,
+    pts: [[0,0],[0,2],[1.2,3],[16,3]],
+    desc: "Release and cross the field shallow (just a few yards deep), underneath the linebackers. Also called a drag." },
+  { name: "Deep Cross", tag: "Crossing route", pos: "WR", start: WR, curve: true,
+    pts: [[0,0],[0,9],[2,15],[6,18],[16,19]],
+    desc: "A long crossing route that climbs deep before bending across the field, usually behind the linebackers." },
+  { name: "Sluggo", tag: "Double move", pos: "WR", start: WR, pts: [[0,0],[0,3],[3,6],[3,23]],
+    desc: "Slant-and-go: sell the slant for a couple of steps, then turn straight upfield and run past the defender who jumped it." },
 ];
 
-const NS = "http://www.w3.org/2000/svg";
-const YD = 9, SIDE_X = 14, REC_X = 56, LOS_Y = 238, W = 200, H = 268;
+const YD = 8, SIDE_X = 14, REC_X = 50, LOS_Y = 202, W = 200, H = 272;
 let uid = 0;
-
-function css(v) { return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
 
 function drawRoute(r, label) {
   const id = "ah" + (uid++);
-  const sx = REC_X + r.start * YD;
-  const pts = r.pts.map(([x, y]) => [sx + x * YD, LOS_Y - y * YD]);
-  const curve = r.name === "Wheel";
+  const sx = REC_X + r.start[0] * YD, sy = LOS_Y - r.start[1] * YD;
+  const pts = r.pts.map(([x, y]) => [sx + x * YD, sy - y * YD]);
   let d = `M${pts[0][0]},${pts[0][1]}`;
-  if (curve) {
+  if (r.curve) {
     // smooth curve through points
     for (let i = 1; i < pts.length; i++) {
-      const [px, py] = pts[i - 1], [cx, cy] = pts[i];
+      const [cx, cy] = pts[i];
       d += i < pts.length - 1 ? ` Q${cx},${cy} ${(cx + pts[i + 1][0]) / 2},${(cy + pts[i + 1][1]) / 2}` : ` L${cx},${cy}`;
     }
   } else {
     for (let i = 1; i < pts.length; i++) d += ` L${pts[i][0]},${pts[i][1]}`;
   }
-  let yardLines = "";
-  for (let y = 5; y <= 25; y += 5) yardLines += `<line x1="${SIDE_X}" x2="${W}" y1="${LOS_Y - y * YD}" y2="${LOS_Y - y * YD}" stroke="var(--field-line)" stroke-width="1" opacity=".5"/>`;
+  let marks = "";
+  for (let y = 5; y <= 25; y += 5) marks += `<line x1="${SIDE_X}" x2="${W}" y1="${LOS_Y - y * YD}" y2="${LOS_Y - y * YD}" stroke="var(--field-line)" stroke-width="1" opacity=".5"/>`;
+  const hashX = REC_X + 7 * YD;
+  for (let y = -6; y <= 25; y++) marks += `<line x1="${hashX - 3}" x2="${hashX + 3}" y1="${LOS_Y - y * YD}" y2="${LOS_Y - y * YD}" stroke="var(--field-line)" stroke-width="1.2"/>`;
   return `<svg class="field" viewBox="0 0 ${W} ${H}" role="img" aria-label="${label || "Route diagram"}">
     <defs><marker id="${id}" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="var(--route)"/></marker></defs>
     <rect width="${W}" height="${H}" fill="var(--field)"/>
-    ${yardLines}
+    ${marks}
     <line x1="${SIDE_X}" x2="${SIDE_X}" y1="0" y2="${H}" stroke="#fff" stroke-width="4"/>
     <line x1="${SIDE_X}" x2="${W}" y1="${LOS_Y}" y2="${LOS_Y}" stroke="#fff" stroke-width="2" stroke-dasharray="6 5"/>
-    <text x="${W - 6}" y="${LOS_Y + 20}" fill="#fff" font-size="11" text-anchor="end" opacity=".85">LOS</text>
-    <text x="${W - 6}" y="16" fill="#fff" font-size="11" text-anchor="end" opacity=".85">middle →</text>
+    <text x="${W - 6}" y="${LOS_Y - 5}" fill="#fff" font-size="10" text-anchor="end" opacity=".85">LOS</text>
+    <text x="${W - 6}" y="14" fill="#fff" font-size="10" text-anchor="end" opacity=".85">middle →</text>
     <path d="${d}" fill="none" stroke="var(--route)" stroke-width="4" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#${id})"/>
-    <circle cx="${sx}" cy="${LOS_Y + 9}" r="8" fill="var(--player)" stroke="#222" stroke-width="1.5"/>
+    <circle cx="${sx}" cy="${sy}" r="7" fill="var(--player)" stroke="#222" stroke-width="1.5"/>
+    <text x="${sx}" y="${sy + 19}" fill="#fff" font-size="10" font-weight="700" text-anchor="middle">${r.pos === "RB" ? "RB" : r.pos === "WR" ? "WR" : "Slot"}</text>
   </svg>`;
 }
 
