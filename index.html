@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Route Tree Quiz</title>
+<style>
+  :root {
+    --bg: #f4f6f2; --card: #ffffff; --ink: #1c2420; --muted: #5d6a63;
+    --field: #2f7d46; --field-line: rgba(255,255,255,.55); --route: #ffd23f;
+    --player: #ffffff; --accent: #1f6feb; --good: #1a7f37; --bad: #cf222e;
+    --border: #d6ddd8; --chip: #eef2ee;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #101513; --card: #1a211e; --ink: #e8eee9; --muted: #9aa8a0;
+      --field: #1f5a32; --field-line: rgba(255,255,255,.4); --route: #ffd23f;
+      --player: #f0f0f0; --accent: #58a6ff; --good: #3fb950; --bad: #f85149;
+      --border: #2e3833; --chip: #232c28;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #101513; --card: #1a211e; --ink: #e8eee9; --muted: #9aa8a0;
+    --field: #1f5a32; --field-line: rgba(255,255,255,.4); --route: #ffd23f;
+    --player: #f0f0f0; --accent: #58a6ff; --good: #3fb950; --bad: #f85149;
+    --border: #2e3833; --chip: #232c28;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  main { max-width: 720px; margin: 0 auto; padding: 20px 16px 48px; }
+  h1 { font-size: 1.6rem; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 20px; }
+  .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  .tabs button, .btn {
+    border: 1px solid var(--border); background: var(--card); color: var(--ink);
+    padding: 8px 14px; border-radius: 8px; font: inherit; cursor: pointer;
+  }
+  .tabs button[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+  .status { display: flex; justify-content: space-between; color: var(--muted); font-size: .9rem; margin-bottom: 12px; }
+  .bar { height: 6px; background: var(--chip); border-radius: 3px; overflow: hidden; margin-bottom: 16px; }
+  .bar > div { height: 100%; background: var(--accent); transition: width .2s; }
+  .prompt { font-weight: 600; margin: 0 0 12px; }
+  svg.field { display: block; width: 100%; max-width: 260px; margin: 0 auto 16px; border-radius: 8px; }
+  .options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .options button {
+    padding: 12px; border-radius: 10px; border: 2px solid var(--border);
+    background: var(--card); color: var(--ink); font: inherit; font-weight: 600; cursor: pointer; text-align: center;
+  }
+  .options button:hover:not(:disabled) { border-color: var(--accent); }
+  .options button.correct { border-color: var(--good); background: color-mix(in srgb, var(--good) 15%, var(--card)); }
+  .options button.wrong { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 15%, var(--card)); }
+  .options.pics button { padding: 6px; }
+  .options.pics svg.field { margin: 0 auto; max-width: 100%; }
+  .feedback { margin-top: 14px; padding: 12px; border-radius: 10px; background: var(--chip); display: none; }
+  .feedback.show { display: block; }
+  .feedback strong.ok { color: var(--good); }
+  .feedback strong.no { color: var(--bad); }
+  .row { display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px; flex-wrap: wrap; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+  .grid .card h3 { margin: 0 0 2px; font-size: 1.05rem; }
+  .grid .card p { margin: 6px 0 0; font-size: .9rem; color: var(--muted); }
+  .grid svg.field { margin-bottom: 8px; }
+  .tag { display: inline-block; font-size: .75rem; background: var(--chip); padding: 1px 8px; border-radius: 99px; color: var(--muted); }
+  .result h2 { margin-top: 0; }
+  .missed { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .legend { font-size: .85rem; color: var(--muted); margin-top: 16px; }
+  .hidden { display: none; }
+  @media (max-width: 420px) { .options { grid-template-columns: 1fr; } .options.pics { grid-template-columns: 1fr 1fr; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Route Tree Quiz</h1>
+  <p class="sub">Look at the route diagram and name it, or read the name and pick the diagram.</p>
+
+  <div class="tabs" role="group" aria-label="Mode">
+    <button data-mode="name" aria-pressed="true">Name the route</button>
+    <button data-mode="pick" aria-pressed="false">Pick the diagram</button>
+    <button data-mode="study" aria-pressed="false">Study all routes</button>
+  </div>
+
+  <section id="quiz">
+    <div class="card">
+      <div class="status"><span id="qnum"></span><span id="score"></span></div>
+      <div class="bar"><div id="progress"></div></div>
+      <div id="question"></div>
+      <div class="feedback" id="feedback"></div>
+      <div class="row"><button class="btn primary hidden" id="next">Next</button></div>
+    </div>
+  </section>
+
+  <section id="result" class="hidden">
+    <div class="card result">
+      <h2 id="final"></h2>
+      <div id="missedWrap"></div>
+      <div class="row">
+        <button class="btn" id="retryMissed">Retry missed routes</button>
+        <button class="btn primary" id="restart">Start over</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="study" class="hidden">
+    <div class="grid" id="studyGrid"></div>
+  </section>
+
+  <p class="legend">Diagrams: the receiver (circle) lines up on the left side of the field. The thick line on the left is the sideline, the dashed line is the line of scrimmage, and the middle of the field is to the right. Route numbers differ between teams and playbooks.</p>
+</main>
+
+<script>
+// Coordinates in yards: x = yards toward the middle of the field (+) or the sideline (-), y = depth past the line of scrimmage.
+const ROUTES = [
+  { name: "Flat", tag: "1 (common tree)", start: 7, pts: [[0,0],[0.5,1.5],[-8,3]],
+    desc: "Release and get flat to the sideline within 1–3 yards of the line. Often run by backs, tight ends and slot receivers." },
+  { name: "Slant", tag: "2 (common tree)", start: 0, pts: [[0,0],[0,2],[8,9]],
+    desc: "Two or three hard steps upfield, then cut sharply inside at about 45° across the defender's face." },
+  { name: "Comeback", tag: "3 (common tree)", start: 0, pts: [[0,0],[0,15],[-3,12]],
+    desc: "Sell the deep route to about 15 yards, then plant and come back toward the sideline at an angle." },
+  { name: "Curl", tag: "4 (common tree)", start: 0, pts: [[0,0],[0,12],[2.2,9.5]],
+    desc: "Push vertical 10–12 yards, then turn back inside toward the quarterback and settle in the open window." },
+  { name: "Out", tag: "5 (common tree)", start: 0, pts: [[0,0],[0,10],[-5,10]],
+    desc: "Run vertical about 10 yards, then break flat (90°) toward the sideline." },
+  { name: "Dig (In)", tag: "6 (common tree)", start: 0, pts: [[0,0],[0,12],[11,12]],
+    desc: "Run vertical 10–12 yards, then break flat (90°) across the middle of the field." },
+  { name: "Corner", tag: "7 (common tree)", start: 0, pts: [[0,0],[0,12],[-5,19]],
+    desc: "Push vertical 10–12 yards, then break at 45° toward the back corner of the end zone / sideline." },
+  { name: "Post", tag: "8 (common tree)", start: 0, pts: [[0,0],[0,12],[7,22]],
+    desc: "Push vertical 10–12 yards, then break at 45° inside toward the goal post / middle of the field." },
+  { name: "Go (Fly)", tag: "9 (common tree)", start: 0, pts: [[0,0],[0,24]],
+    desc: "Straight vertical sprint down the field. Beat the corner with speed." },
+  { name: "Hitch", tag: "0 in some trees", start: 0, pts: [[0,0],[0,6],[-1.2,4.3]],
+    desc: "Sprint 5–6 yards, stop, and snap back to face the quarterback. A quick throw." },
+  { name: "Quick Out", tag: "Short route", start: 0, pts: [[0,0],[0,5],[-5,5]],
+    desc: "A short out: about 5 yards vertical, then break flat toward the sideline." },
+  { name: "Drag (Shallow Cross)", tag: "Crossing route", start: 0, pts: [[0,0],[1,2],[15,3]],
+    desc: "Release inside and run shallow (2–5 yards) all the way across the field underneath the linebackers." },
+  { name: "Wheel", tag: "Combo route", start: 7, pts: [[0,0],[-3,1.5],[-6,4],[-7,7],[-7,22]],
+    desc: "Start like a flat toward the sideline, then turn it upfield along the sideline. The path looks like a wheel." },
+  { name: "Post-Corner", tag: "Double move", start: 0, pts: [[0,0],[0,10],[3,13],[-3,20]],
+    desc: "Fake the post by stemming inside, then break back outside to the corner." },
+  { name: "Slant-and-Go (Sluggo)", tag: "Double move", start: 0, pts: [[0,0],[0,2],[3,5],[3,23]],
+    desc: "Sell the slant for a couple of steps, then turn straight upfield on a go route." },
+  { name: "Fade", tag: "Vertical", start: 0, pts: [[0,0],[-0.5,8],[-2.5,22]],
+    desc: "Release and drift toward the sideline as you go deep, for a ball thrown over the outside shoulder." },
+];
+
+const NS = "http://www.w3.org/2000/svg";
+const YD = 9, SIDE_X = 14, REC_X = 56, LOS_Y = 238, W = 200, H = 268;
+let uid = 0;
+
+function css(v) { return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+
+function drawRoute(r, label) {
+  const id = "ah" + (uid++);
+  const sx = REC_X + r.start * YD;
+  const pts = r.pts.map(([x, y]) => [sx + x * YD, LOS_Y - y * YD]);
+  const curve = r.name === "Wheel";
+  let d = `M${pts[0][0]},${pts[0][1]}`;
+  if (curve) {
+    // smooth curve through points
+    for (let i = 1; i < pts.length; i++) {
+      const [px, py] = pts[i - 1], [cx, cy] = pts[i];
+      d += i < pts.length - 1 ? ` Q${cx},${cy} ${(cx + pts[i + 1][0]) / 2},${(cy + pts[i + 1][1]) / 2}` : ` L${cx},${cy}`;
+    }
+  } else {
+    for (let i = 1; i < pts.length; i++) d += ` L${pts[i][0]},${pts[i][1]}`;
+  }
+  let yardLines = "";
+  for (let y = 5; y <= 25; y += 5) yardLines += `<line x1="${SIDE_X}" x2="${W}" y1="${LOS_Y - y * YD}" y2="${LOS_Y - y * YD}" stroke="var(--field-line)" stroke-width="1" opacity=".5"/>`;
+  return `<svg class="field" viewBox="0 0 ${W} ${H}" role="img" aria-label="${label || "Route diagram"}">
+    <defs><marker id="${id}" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="var(--route)"/></marker></defs>
+    <rect width="${W}" height="${H}" fill="var(--field)"/>
+    ${yardLines}
+    <line x1="${SIDE_X}" x2="${SIDE_X}" y1="0" y2="${H}" stroke="#fff" stroke-width="4"/>
+    <line x1="${SIDE_X}" x2="${W}" y1="${LOS_Y}" y2="${LOS_Y}" stroke="#fff" stroke-width="2" stroke-dasharray="6 5"/>
+    <text x="${W - 6}" y="${LOS_Y + 20}" fill="#fff" font-size="11" text-anchor="end" opacity=".85">LOS</text>
+    <text x="${W - 6}" y="16" fill="#fff" font-size="11" text-anchor="end" opacity=".85">middle →</text>
+    <path d="${d}" fill="none" stroke="var(--route)" stroke-width="4" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#${id})"/>
+    <circle cx="${sx}" cy="${LOS_Y + 9}" r="8" fill="var(--player)" stroke="#222" stroke-width="1.5"/>
+  </svg>`;
+}
+
+const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+
+let mode = "name", deck = [], idx = 0, score = 0, missed = [];
+const $ = s => document.getElementById(s);
+
+function start(routes) {
+  deck = shuffle(routes || ROUTES); idx = 0; score = 0; missed = [];
+  $("result").classList.add("hidden"); $("quiz").classList.remove("hidden");
+  render();
+}
+
+function choicesFor(r) {
+  return shuffle([r, ...shuffle(ROUTES.filter(x => x !== r)).slice(0, 3)]);
+}
+
+function render() {
+  const r = deck[idx];
+  $("qnum").textContent = `Question ${idx + 1} of ${deck.length}`;
+  $("score").textContent = `Score: ${score}`;
+  $("progress").style.width = (idx / deck.length * 100) + "%";
+  $("feedback").className = "feedback"; $("next").classList.add("hidden");
+  const opts = choicesFor(r);
+  if (mode === "name") {
+    $("question").innerHTML = `<p class="prompt">What route is this?</p>${drawRoute(r)}
+      <div class="options">${opts.map((o, i) => `<button data-i="${i}">${o.name}</button>`).join("")}</div>`;
+  } else {
+    $("question").innerHTML = `<p class="prompt">Which diagram shows the <u>${r.name}</u>?</p>
+      <div class="options pics">${opts.map((o, i) => `<button data-i="${i}" aria-label="Option ${i + 1}">${drawRoute(o, "Option " + (i + 1))}</button>`).join("")}</div>`;
+  }
+  $("question").querySelectorAll(".options button").forEach(b => b.onclick = () => answer(b, opts, r));
+}
+
+function answer(btn, opts, r) {
+  const buttons = $("question").querySelectorAll(".options button");
+  buttons.forEach(b => b.disabled = true);
+  const pick = opts[+btn.dataset.i];
+  const ok = pick === r;
+  buttons.forEach((b, i) => { if (opts[i] === r) b.classList.add("correct"); });
+  if (ok) score++; else { btn.classList.add("wrong"); missed.push(r); }
+  $("score").textContent = `Score: ${score}`;
+  $("feedback").innerHTML = `<strong class="${ok ? "ok" : "no"}">${ok ? "Correct!" : "Not quite."}</strong>
+    ${ok ? "" : `You picked <b>${pick.name}</b>. `}This is the <b>${r.name}</b>: ${r.desc}`;
+  $("feedback").classList.add("show");
+  const n = $("next"); n.classList.remove("hidden");
+  n.textContent = idx === deck.length - 1 ? "See results" : "Next";
+  n.focus();
+}
+
+$("next").onclick = () => { idx++; idx < deck.length ? render() : finish(); };
+
+function finish() {
+  $("progress").style.width = "100%";
+  $("quiz").classList.add("hidden"); $("result").classList.remove("hidden");
+  const pct = Math.round(score / deck.length * 100);
+  $("final").textContent = `You scored ${score} / ${deck.length} (${pct}%)` + (pct === 100 ? " 🏈 Perfect!" : "");
+  $("missedWrap").innerHTML = missed.length
+    ? `<p>Routes to review:</p><div class="missed">${missed.map(m => `<span class="tag">${m.name}</span>`).join("")}</div>`
+    : `<p>No misses. You know your route tree.</p>`;
+  $("retryMissed").classList.toggle("hidden", !missed.length);
+}
+$("retryMissed").onclick = () => start(missed);
+$("restart").onclick = () => start();
+
+function renderStudy() {
+  $("studyGrid").innerHTML = ROUTES.map(r => `<div class="card">${drawRoute(r, r.name)}
+    <h3>${r.name}</h3><span class="tag">${r.tag}</span><p>${r.desc}</p></div>`).join("");
+}
+
+document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => {
+  document.querySelectorAll(".tabs button").forEach(x => x.setAttribute("aria-pressed", x === b));
+  mode = b.dataset.mode;
+  const study = mode === "study";
+  $("study").classList.toggle("hidden", !study);
+  $("quiz").classList.toggle("hidden", study);
+  $("result").classList.add("hidden");
+  if (study) renderStudy(); else start();
+});
+
+start();
+</script>
+</body>
+</html>
